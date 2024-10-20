@@ -5,37 +5,38 @@ import threading
 import time
 
 # S-DES相关的置换和功能
-def permute(input_bits, permutation_table):
-    return ''.join(input_bits[i - 1] for i in permutation_table)
+def permute(original, permutation):
+    return ''.join(original[i - 1] for i in permutation)
 
-def left_shift(bits, num_shifts):
-    return bits[num_shifts:] + bits[:num_shifts]
+def left_shift(bits, shifts):
+    return bits[shifts:] + bits[:shifts]
 
-def sbox(input_bits, sbox_table):
-    row = int(input_bits[0] + input_bits[3], 2)  # 取行
-    col = int(input_bits[1] + input_bits[2], 2)  # 取列
-    return f'{sbox_table[row][col]:02b}'  # 返回2位的二进制结果
+def s_box(bits, table):
+    row = int(bits[0] + bits[3], 2)  # 取行
+    col = int(bits[1] + bits[2], 2)  # 取列
+    return f'{table[row][col]:02b}'  # 返回2位的二进制结果
 
-def key_schedule(key):
-    p10 = [3, 5, 2, 7, 4, 10, 1, 9, 8, 6]
-    key = permute(key, p10)
+def key_expansion(key):
+    P10 = [3, 5, 2, 7, 4, 10, 1, 9, 8, 6]
+    p8 = [6, 3, 7, 4, 8, 5, 10, 9]
+    key = permute(key, P10)
     
     left_half, right_half = key[:5], key[5:]
     left_half = left_shift(left_half, 1)
     right_half = left_shift(right_half, 1)
     
-    p8 = [6, 3, 7, 4, 8, 5, 10, 9]
-    k1 = permute(left_half + right_half, p8)
+
+    K1 = permute(left_half + right_half, p8)
     
     left_half = left_shift(left_half, 2)
     right_half = left_shift(right_half, 2)
     
-    k2 = permute(left_half + right_half, p8)
+    K2 = permute(left_half + right_half, p8)
     
-    return k1, k2
+    return K1, K2
 
-def fk(bits, subkey):
-    left_half, right_half = bits[:4], bits[4:]
+def fk(data, subkey):
+    left_half, right_half = data[:4], data[4:]
     ep = [4, 1, 2, 3, 2, 3, 4, 1]
     expanded_right = permute(right_half, ep)
     xor_result = f'{int(expanded_right, 2) ^ int(subkey, 2):08b}'
@@ -56,7 +57,7 @@ def fk(bits, subkey):
     
     left_sbox = xor_result[:4]
     right_sbox = xor_result[4:]
-    sbox_output = sbox(left_sbox, sbox_1) + sbox(right_sbox, sbox_2)
+    sbox_output = s_box(left_sbox, sbox_1) + s_box(right_sbox, sbox_2)
     p4 = [2, 4, 3, 1]
     
     return permute(sbox_output, p4)
@@ -65,15 +66,15 @@ def sdes_encrypt(plain_text, key):
     ip = [2, 6, 3, 1, 4, 8, 5, 7]
     ip_inv = [4, 1, 3, 5, 7, 2, 8, 6]
     
-    k1, k2 = key_schedule(key)
+    K1, K2 = key_expansion(key)
     text = permute(plain_text, ip)
     
     left_half, right_half = text[:4], text[4:]
-    fk_result = fk(text, k1)
+    fk_result = fk(text, K1)
     text = right_half + f'{int(left_half, 2) ^ int(fk_result, 2):04b}'
     
     left_half, right_half = text[:4], text[4:]
-    fk_result = fk(text, k2)
+    fk_result = fk(text, K2)
     text = f'{int(left_half, 2) ^ int(fk_result, 2):04b}' + right_half
     
     return permute(text, ip_inv)
@@ -82,15 +83,15 @@ def sdes_decrypt(cipher_text, key):
     ip = [2, 6, 3, 1, 4, 8, 5, 7]
     ip_inv = [4, 1, 3, 5, 7, 2, 8, 6]
     
-    k1, k2 = key_schedule(key)
+    K1, K2 = key_expansion(key)
     text = permute(cipher_text, ip)
     
     left_half, right_half = text[:4], text[4:]
-    fk_result = fk(text, k2)
+    fk_result = fk(text, K2)
     text = right_half + f'{int(left_half, 2) ^ int(fk_result, 2):04b}'
     
     left_half, right_half = text[:4], text[4:]
-    fk_result = fk(text, k1)
+    fk_result = fk(text, K1)
     text = f'{int(left_half, 2) ^ int(fk_result, 2):04b}' + right_half
     
     return permute(text, ip_inv)
