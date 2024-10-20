@@ -1,4 +1,3 @@
-import base64
 def permute(original, permutation):
     #根据置换表，对数据进行置换
     return [original[i-1] for i in permutation]
@@ -116,16 +115,6 @@ def bin_to_str(b):
     chars = [chr(int(b[i:i+8], 2)) for i in range(0, len(b), 8)]
     return ''.join(chars)
 
-#二进制转Base64（或称为ASCII）
-def bin_to_base64(bin_str):
-    binary_bytes = int(bin_str, 2).to_bytes(len(bin_str) // 8, byteorder='big')
-    return base64.b64encode(binary_bytes).decode('utf-8')
-
-#Base64转二进制
-def base64_to_bin(b64_str):
-    binary_bytes = base64.b64decode(b64_str)
-    return ''.join(format(byte, '08b') for byte in binary_bytes)
-
 #GUI实现
 import tkinter as tk
 from tkinter import messagebox
@@ -160,9 +149,9 @@ def encrypt_callback():
             for i in range(0, len(binary_plaintext), 8):
                 plaintext_bits = [int(x) for x in binary_plaintext[i:i+8]]
                 encrypted_bits.extend(sdes_encrypt(plaintext_bits, key_bits))
-            encrypted_base64 = bin_to_base64(''.join(map(str, encrypted_bits)))
+            encrypted_str=bin_to_str(''.join(map(str, encrypted_bits)))
             result_entry.delete(0, tk.END)
-            result_entry.insert(0, encrypted_base64)
+            result_entry.insert(0, encrypted_str)
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
@@ -185,8 +174,8 @@ def decrypt_callback():
             result_entry.delete(0, tk.END)
             result_entry.insert(0, ''.join(map(str, decrypted_bits)))
         else:
-            # 输入是加密后的Base64字符串
-            binary_ciphertext = base64_to_bin(ciphertext)
+            # 输入是加密后的字符串
+            binary_ciphertext = str_to_bin(ciphertext)
             decrypted_bits = []
             for i in range(0, len(binary_ciphertext), 8):
                 ciphertext_bits = [int(x) for x in binary_ciphertext[i:i+8]]
